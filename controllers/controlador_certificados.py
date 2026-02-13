@@ -1,7 +1,6 @@
 #  Copyright (c) 2026 Fleer
 import os
 import shutil
-import uuid
 import traceback
 import tempfile
 import re

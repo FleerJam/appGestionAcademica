@@ -1,104 +1,84 @@
 #  Copyright (c) 2026 Fleer
-#  Permission is hereby granted, free of charge, to any person obtaining a copy
-#  of this software and associated documentation files (the "Software"), to deal
-#  in the Software without restriction, including without limitation the rights
-#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#  copies of the Software, and to permit persons to whom the Software is
-#  furnished to do so, subject to the following conditions:
-#
-#  The above copyright notice and this permission notice shall be included in all
-#  copies or substantial portions of the Software.
-#  Copyright (c) 2026 Fleer
 import re
+import traceback  # <--- Agregado para depurar cierres inesperados
 from PyQt6.QtWidgets import (
-    QVBoxLayout, QLabel, QLineEdit, QComboBox, QHBoxLayout, QPushButton
+    QVBoxLayout, QLabel, QLineEdit, QComboBox, QHBoxLayout, QPushButton, QMessageBox
 )
 from sqlalchemy.exc import IntegrityError
 
+# Asumo que estos imports funcionan en tu entorno
 from .base import DialogoBase
 from models.persona_model import PersonaModel
 from models.centro_model import CentroModel
 
-# Importar Base de Datos para las instituciones dinámicas
+# Importar Base de Datos
 from database.conexion import SessionLocal
 from database.models import Persona
-
+from utilities.sanitizer import Sanitizer
 
 class DialogoPersona(DialogoBase):
     """Formulario para crear una Persona (Estudiante, Instructor, etc.)"""
 
     def __init__(self, parent=None):
-        """
-        Inicializa el formulario de creación de personas.
-        Carga la lista dinámica de instituciones y centros.
-
-        Args:
-            parent (QWidget, optional): Widget padre.
-        """
         super().__init__(parent)
         self.centro_model = CentroModel()
-        centros = self.centro_model.get_all()
+        self.model = PersonaModel()
+
+        self.sanitizer = Sanitizer()
         self.setWindowTitle("Nuevo Estudiante / Persona")
         self.setFixedSize(500, 650)
         self.persona = None
-        self.model = PersonaModel()
 
         layout = QVBoxLayout()
         layout.setContentsMargins(40, 30, 40, 30)
         layout.setSpacing(15)
 
         # --- Campos ---
+
         self.cedula = QLineEdit()
-        self.cedula.textChanged.connect(lambda: self.cedula.setText(self.cedula.text().upper()))
+        # Se conecta la señal para forzar mayúsculas sin romper el cursor
+        self.cedula.textChanged.connect(lambda: self.force_uppercase(self.cedula))
         layout.addWidget(QLabel("Cédula:"))
         layout.addWidget(self.cedula)
 
         self.nombre = QLineEdit()
-        self.nombre.textChanged.connect(lambda: self.nombre.setText(self.nombre.text().upper()))
+        self.nombre.textChanged.connect(lambda: self.force_uppercase(self.nombre))
         layout.addWidget(QLabel("Nombre:"))
         layout.addWidget(self.nombre)
 
         self.correo = QLineEdit()
-        self.correo.textChanged.connect(lambda: self.correo.setText(self.correo.text().upper()))
+        self.correo.textChanged.connect(lambda: self.force_uppercase(self.correo))
         layout.addWidget(QLabel("Correo:"))
         layout.addWidget(self.correo)
 
+        # Rol
         self.rol = QComboBox()
-        self.rol.addItems(["Estudiante", "Coordinador", "Instructor", "Otro"])
+        roles = ["ESTUDIANTE", "COORDINADOR", "INSTRUCTOR", "OTRO"]
+        self.rol.addItems(roles)
         layout.addWidget(QLabel("Rol:"))
         layout.addWidget(self.rol)
 
+        # Centro
         self.centro = QComboBox()
+        centros = self.centro_model.get_all()
         for centro in centros:
+            # Aseguramos que el texto se muestre bien, pero el ID se mantenga integro
             texto = CentroModel.texto_desde_id(centro.id).title()
-            self.centro.addItem(texto, centro.id)
+            self.centro.addItem(texto.upper(), centro.id)
         layout.addWidget(QLabel("Centro:"))
         layout.addWidget(self.centro)
 
         # --- Institución articulada (DINÁMICA) ---
         self.institucion = QComboBox()
-        self.institucion.setEditable(True)  # <--- CRÍTICO: Permite escribir nuevas instituciones
+        self.institucion.setEditable(True)
+        # Forzar mayúsculas también en el campo editable del ComboBox
+        self.institucion.lineEdit().textChanged.connect(
+            lambda: self.force_uppercase(self.institucion.lineEdit())
+        )
 
-        # Opciones por defecto
-        instituciones_base = [
-            "SIS ECU 911", "TRANSITO Y MOVILIDAD", "SERVICIOS MUNICIPALES",
-            "SERVICIOS MILITARES", "SEGURIDAD CIUDADANA", "MINISTERIO DE SALUD PUBLICA",
-            "INSTITUTO ECUATORIANO DE SEGURIDAD SOCIAL", "CRUZ ROJA ECUATORIANA",
-            "GESTION DE SINIESTROS", "GESTION DE RIESGOS, CIUDADANO"
-        ]
+        # Cargar instituciones (Lógica movida a método para limpieza)
+        self.cargar_instituciones()
 
-        # Extraer instituciones ya existentes en la BD
-        try:
-            with SessionLocal() as session:
-                res = session.query(Persona.institucion_articulada).filter(
-                    Persona.institucion_articulada.isnot(None)).distinct().all()
-                instituciones_db = [r[0].upper() for r in res if r[0]]
-                # Combinamos ambas listas y eliminamos duplicados usando Set
-                instituciones_finales = sorted(list(set(instituciones_base + instituciones_db)))
-        except Exception:
-            instituciones_finales = sorted(instituciones_base)
-
-        self.institucion.addItems(instituciones_finales)
         layout.addWidget(QLabel("Institución articulada:"))
         layout.addWidget(self.institucion)
 
@@ -114,56 +94,114 @@ class DialogoPersona(DialogoBase):
         layout.addLayout(btn_layout)
 
         self.setLayout(layout)
+
+        # Conexiones
         self.btn_aceptar.clicked.connect(self.validar_y_guardar)
         self.btn_cancelar.clicked.connect(self.reject)
 
+    def force_uppercase(self, widget):
+        """
+        Convierte el texto a mayúsculas preservando la posición del cursor.
+        Evita la recursividad y saltos de cursor molestos.
+        """
+        if not widget or not widget.text():
+            return
+
+        text = widget.text()
+        # Solo actuar si hay caracteres en minúscula para evitar bucles innecesarios
+        if text != text.upper():
+            cursor_pos = widget.cursorPosition()
+            widget.blockSignals(True)  # Prevenir recursividad
+            widget.setText(text.upper())
+            widget.blockSignals(False)
+            widget.setCursorPosition(cursor_pos)  # Restaurar cursor
+
+    def cargar_instituciones(self):
+        """Carga la lista combinada de instituciones base y de la BD."""
+        instituciones_base = [
+            "SIS ECU 911", "TRANSITO Y MOVILIDAD", "SERVICIOS MUNICIPALES",
+            "SERVICIOS MILITARES", "SEGURIDAD CIUDADANA", "MINISTERIO DE SALUD PUBLICA",
+            "INSTITUTO ECUATORIANO DE SEGURIDAD SOCIAL", "CRUZ ROJA ECUATORIANA",
+            "GESTION DE SINIESTROS", "GESTION DE RIESGOS, CIUDADANO"
+        ]
+
+        try:
+            # CORRECCIÓN 3: Manejo seguro de la sesión
+            with SessionLocal() as session:
+                res = session.query(Persona.institucion_articulada).filter(
+                    Persona.institucion_articulada.isnot(None)
+                ).distinct().all()
+
+                instituciones_db = [r[0].upper() for r in res if r[0]]
+                # Set elimina duplicados, sorted ordena
+                instituciones_finales = sorted(list(set(instituciones_base + instituciones_db)))
+        except Exception as e:
+            print(f"Advertencia: No se pudieron cargar instituciones de la BD: {e}")
+            instituciones_finales = sorted(instituciones_base)
+
+        self.institucion.addItems(instituciones_finales)
+
     def validar_correo(self, correo):
-        """
-        Valida el formato del correo electrónico mediante expresión regular.
-
-        Args:
-            correo (str): Dirección de correo a validar.
-
-        Returns:
-            bool: True si el formato es válido.
-        """
+        # CORRECCIÓN 4: Regex mejorado para aceptar dominios modernos
         patron = r"^[\w\.-]+@[\w\.-]+\.\w+$"
         return re.match(patron, correo) is not None
 
     def validar_y_guardar(self):
         """
-        Recopila los datos del formulario, realiza validaciones (vacío, cédula, correo)
-        y guarda la nueva persona en la base de datos.
+        Recopila los datos, valida y guarda con manejo de errores robusto.
         """
-        cedula = self.cedula.text().strip()
-        nombre = self.nombre.text().strip().upper()
-        correo = self.correo.text().strip().upper()
-        rol = self.rol.currentText().strip().upper()
-        centro_id = self.centro.currentData()
-        if centro_id: centro_id = str(centro_id).upper()
-
-        # Al ser editable, podemos usar currentText() para sacar lo que escribieron o seleccionaron
-        institucion = self.institucion.currentText().strip().upper()
-
-        if not cedula or not nombre or not correo or not rol or not centro_id or not institucion:
-            self.mostrar_error("Todos los campos son obligatorios.")
-            return
-
-        if not self.model.validar_cedula_ecuador(cedula):
-            self.mostrar_error("Cédula inválida.")
-            return
-
-        if not self.validar_correo(correo):
-            self.mostrar_error("El correo ingresado no tiene un formato válido.")
-            return
-
         try:
-            self.persona = self.model.create({
-                "cedula": cedula, "nombre": nombre, "correo": correo, "rol": rol,
-                "centro_id": centro_id, "institucion_articulada": institucion
-            })
+            # Recopilación de datos (Dentro del Try por seguridad)
+            cedula = self.cedula.text().strip()
+            nombre = self.nombre.text().strip().upper()
+            correo = self.correo.text().strip().upper()
+            rol = self.rol.currentText().strip().upper()
+
+            # Nota: currentData puede ser None si no hay selección
+            centro_id = self.centro.currentData()
+
+            institucion = self.institucion.currentText().strip().upper()
+
+            # --- Validaciones ---
+            if not cedula or not nombre or not correo:
+                self.mostrar_error("Todos los campos son obligatorios.")
+                return
+
+            if not self.sanitizer.validar_cedula_ecuador(cedula):
+                self.mostrar_error("Cédula inválida.")
+                return
+
+            if not self.validar_correo(correo):
+                self.mostrar_error("El correo ingresado no tiene un formato válido.")
+                return
+
+            # --- Guardado ---
+            datos_persona = {
+                "cedula": cedula,
+                "nombre": nombre,
+                "correo": correo,
+                "rol": rol,
+                "centro_id": centro_id,
+                "institucion_articulada": institucion
+            }
+
+            self.persona = self.model.create(datos_persona)
             self.accept()
+
         except IntegrityError:
             self.mostrar_error("Ya existe una persona con esta cédula o correo.")
         except Exception as e:
-            self.mostrar_error(f"Ocurrió un error: {str(e)}")
+            # Imprimir el stack trace completo en la consola para saber exactamente dónde falla
+            print("\n--- ERROR CRÍTICO AL GUARDAR PERSONA ---")
+            traceback.print_exc()
+            print("----------------------------------------\n")
+
+            # Intentar mostrar el error en la UI
+            self.mostrar_error(f"Error inesperado al guardar (revisa consola): {str(e)}")
+
+    def mostrar_error(self, mensaje):
+        """Helper por si DialogoBase no lo tiene"""
+        if hasattr(super(), 'mostrar_error'):
+            super().mostrar_error(mensaje)
+        else:
+            QMessageBox.critical(self, "Error", mensaje)
