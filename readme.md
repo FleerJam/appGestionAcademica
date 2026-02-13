@@ -9,8 +9,8 @@ Este sistema está desarrollado en Python y utiliza PyQt/PySide para la interfaz
 Pasos para empezar:
 
 Clonación del Repositorio: ```bash
-git clone https://github.com/tu-usuario/nombre-del-repo.git
-cd nombre-del-repo
+git clone https://github.com/FleerJam/appGestionAcademica/
+cd gestionAcademica
 
 
 
@@ -26,7 +26,7 @@ Instalación de Dependencias: Instale las librerías necesarias mediante el arch
 pip install -r requirements.txt
 
 
-Configuración de la Base de Datos: El sistema es compatible con SQLite (por defecto para pruebas), PostgreSQL y MySQL. Puede ajustar la cadena de conexión en el archivo de configuración correspondiente o mediante la interfaz.
+Configuración de la Base de Datos: El sistema es compatible con SQLite (por defecto para pruebas), PostgreSQL y MySQL. Puede ajustar la cadena de conexión en el archivo de configuración correspondiente o mediante la interfaz, esto se actualizara automaticamente gracias a sqalchemy.
 
 2. Estructura del Proyecto
 
@@ -42,19 +42,21 @@ Para facilitar la modificación del código, el proyecto se divide en:
 
 /views o archivos .ui: Archivos de diseño de la interfaz gráfica.
 
+/docs: contiene un html con informacion util sobre las funciones 
+
 3. Funcionalidades Principales
 
 El sistema ofrece una base sólida que puede ser extendida según sus necesidades:
 
 Gestión Académica y de Datos
 
-Validación de Identidad: Módulo de validación de cédulas (Ecuador) fácilmente adaptable a otros países en utilities/sanitizer.py.
+Validación de Cedulas Validas: Módulo de validación de cédulas (Ecuador) fácilmente adaptable a otros países en utilities/sanitizer.py.
 
 Motor de Importación: Lógica basada en Pandas para procesar archivos Excel con mapeo dinámico de columnas.
 
 Sanitización de Datos: Limpieza automática de cadenas de texto y normalización de formatos.
 
-Generación y Firma de Documentos
+Generación y Subida de Documentos Firmados
 
 Motor Word a PDF: Utiliza plantillas de Word con etiquetas dinámicas {} para generar certificados masivos.
 
@@ -63,8 +65,6 @@ Módulo de Firma Digital: Flujo de trabajo diseñado para integrar firmas electr
 4. Compilación y Distribución
 
 Si desea generar un ejecutable final tras realizar sus cambios, el proyecto es compatible con:
-
-Nuitka: (Recomendado para optimización y protección de código).
 
 PyInstaller: Para empaquetado rápido.
 
@@ -84,6 +84,7 @@ Lenguaje: Python 3.9 o superior.
 
 Interfaz: PyQt6 o PySide6.
 
-Base de Datos: SQLite, MySQL o PostgreSQL.
+Base de Datos: SQLite, MySQL o PostgreSQL (Sqlalchemy).
 
 Herramientas de Diseño: Qt Designer (opcional para editar archivos .ui).
+
