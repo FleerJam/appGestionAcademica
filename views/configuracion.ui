@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ConfiguracionBD</class>
+ <widget class="QWidget" name="ConfiguracionBD">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>650</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Configuración del Sistema</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout_Principal">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+
+     <!-- TAB 1: CONEXIÓN BD -->
+     <widget class="QWidget" name="tab_bd">
+      <attribute name="title">
+       <string>Conexión a Base de Datos</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_bd">
+       <item>
+        <widget class="QGroupBox" name="groupBox_TipoBD">
+         <property name="title">
+          <string>Tipo de Conexión</string>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QRadioButton" name="radioBtn_Local">
+            <property name="text"><string>Base de Datos Local (SQLite/Local)</string></property>
+            <property name="checked"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="radioBtn_Online">
+            <property name="text"><string>Base de Datos en Línea (PostgreSQL)</string></property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_Credenciales">
+         <property name="title">
+          <string>Credenciales (Solo si es en línea)</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout_Credenciales">
+          <item row="0" column="0"><widget class="QLabel" name="label_Url"><property name="text"><string>URL / Host:</string></property></widget></item>
+          <item row="0" column="1"><widget class="QLineEdit" name="lineEdit_Url"/></item>
+
+          <item row="1" column="0"><widget class="QLabel" name="label_Puerto"><property name="text"><string>Puerto:</string></property></widget></item>
+          <item row="1" column="1"><widget class="QLineEdit" name="lineEdit_Puerto"/></item>
+
+          <item row="2" column="0"><widget class="QLabel" name="label_NombreBD"><property name="text"><string>Nombre BD:</string></property></widget></item>
+          <item row="2" column="1"><widget class="QLineEdit" name="lineEdit_NombreBD"/></item>
+
+          <item row="3" column="0"><widget class="QLabel" name="label_Usuario"><property name="text"><string>Usuario:</string></property></widget></item>
+          <item row="3" column="1"><widget class="QLineEdit" name="lineEdit_Usuario"/></item>
+
+          <item row="4" column="0"><widget class="QLabel" name="label_Password"><property name="text"><string>Contraseña:</string></property></widget></item>
+          <item row="4" column="1"><widget class="QLineEdit" name="lineEdit_Password"><property name="echoMode"><enum>QLineEdit::Password</enum></property></widget></item>
+         </layout>
+        </widget>
+       </item>
+
+       <!-- NUEVO: CARPETA COMPARTIDA PARA PDFs FIRMADOS -->
+       <item>
+        <widget class="QGroupBox" name="groupBox_CarpetaCompartida">
+         <property name="title">
+          <string>Almacenamiento de Certificados Firmados (Carpeta Compartida / Google Drive)</string>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_carpeta">
+          <item>
+           <widget class="QLineEdit" name="lineEdit_CarpetaCompartida">
+            <property name="placeholderText"><string>Ej: C:\Google Drive\Certificados_Firmados</string></property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_buscar_carpeta">
+            <property name="text"><string>Examinar...</string></property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+
+       <item>
+        <spacer name="verticalSpacer_bd">
+         <property name="orientation"><enum>Qt::Vertical</enum></property>
+         <property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property>
+        </spacer>
+       </item>
+
+       <item>
+        <widget class="QPushButton" name="btn_probar_bd">
+         <property name="text">
+          <string>Probar Conexión</string>
+         </property>
+         <property name="styleSheet">
+          <string>background-color: #f39c12; color: white; font-weight: bold; padding: 5px;</string>
+         </property>
+        </widget>
+       </item>
+
+       <item>
+        <widget class="QPushButton" name="btn_guardar_bd">
+         <property name="text">
+          <string>Guardar Configuración</string>
+         </property>
+         <property name="styleSheet">
+          <string>background-color: #2980b9; color: white; font-weight: bold; padding: 8px;</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+
+     <!-- TAB 2: TIPOS DE CERTIFICADO -->
+     <widget class="QWidget" name="tab_certificados">
+      <attribute name="title"><string>Tipos de Certificado</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_cert">
+       <item><widget class="QLabel" name="label_info_cert"><property name="text"><string>Administra los tipos de certificados disponibles en la base de datos:</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidget_Certificados"/></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_cert">
+         <item><widget class="QLineEdit" name="lineEdit_NuevoCertificado"><property name="placeholderText"><string>Nombre del nuevo tipo de certificado...</string></property></widget></item>
+         <item><widget class="QPushButton" name="btn_AgregarCertificado"><property name="text"><string>Agregar</string></property></widget></item>
+         <item><widget class="QPushButton" name="btn_EliminarCertificado"><property name="text"><string>Eliminar Seleccionado</string></property></widget></item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+
+     <!-- TAB 3: INSTITUCIONES ARTICULADAS -->
+     <widget class="QWidget" name="tab_instituciones">
+      <attribute name="title"><string>Instituciones Articuladas</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_inst">
+       <item><widget class="QLabel" name="label_info_inst"><property name="text"><string>Lista de instituciones extraídas de los estudiantes. Renombrar una institución actualizará de golpe a todos los estudiantes vinculados a ella.</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+       <item><widget class="QListWidget" name="listWidget_Instituciones"/></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_inst">
+         <item><widget class="QLineEdit" name="lineEdit_RenombrarInstitucion"><property name="placeholderText"><string>Nuevo nombre para la institución seleccionada...</string></property></widget></item>
+         <item><widget class="QPushButton" name="btn_RenombrarInstitucion"><property name="text"><string>Renombrar en Base de Datos</string></property></widget></item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

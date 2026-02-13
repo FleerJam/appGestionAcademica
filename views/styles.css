@@ -1,0 +1,228 @@
+/*
+ * Copyright (c) 2026 Fleer
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ */
+
+/* =========================================================================
+   1. RESET MAESTRO DE BORDES (Para eliminar lineas de StyledPanel y Frames)
+   ========================================================================= */
+
+/* Elimina bordes de TODOS los QFrame, QWidget contenedores y QGroupBox */
+QFrame, QGroupBox, QScrollArea, QStackedWidget {{
+    border: none;
+    outline: none;
+}}
+
+/* REGLA ESPECIFICA: Si en el XML usaste 'StyledPanel', esto fuerza a quitar el borde 3D */
+QFrame[frameShape="1"], QFrame[frameShape="StyledPanel"] {{
+    border: none;
+    background-color: transparent; /* Evita cuadros grises de fondo */
+}}
+
+/* Ajuste para Labels (que heredan de QFrame) para que no tengan padding inesperado */
+QLabel {{
+    border: none;
+    background-color: transparent;
+}}
+
+/* =========================================================================
+   2. ESTILOS DE ESTRUCTURA (Para que se vea bien organizado)
+   ========================================================================= */
+
+/* Sidebar: Fondo blanco */
+QFrame#sidebar {{
+    background-color: white;
+    padding-left: 5px; padding-right: 0px;
+}}
+
+/* Cards: Fondo blanco con borde sutil (Look Moderno) */
+QFrame#card_1, QFrame#card_2, QFrame#card_3 {{
+    background-color: white;
+    border-radius: 12px;
+    /* Cambiamos el borde negro de 3px por uno gris muy suave de 1px */
+    border: 1px solid #E0E0E0;
+}}
+
+/* Opcional: un efecto cuando pasas el mouse para que se sienta interactivo */
+QFrame#card_1:hover, QFrame#card_2:hover, QFrame#card_3:hover {{
+    border: 1px solid #0056b3; /* El azul de tu sistema */
+}}
+/* Contenedores de texto dentro de las cards (que tenian StyledPanel) */
+QFrame#card_1_text, QFrame#card_2_text, QFrame#card_3_text {{
+    border: none;
+    background: transparent;
+}}
+
+/* GroupBox: Eliminar la linea superior que suele quedar */
+QGroupBox {{
+    border: none;
+    margin-top: 10px;
+    font-weight: bold;
+}}
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 5px;
+    color: #555;
+}}
+
+/* =========================================================================
+   3. ESTILOS DE TABLA
+   ========================================================================= */
+QTableWidget {{
+    cursor: arrow;
+    background-color: white; /* Fondo base blanco */
+    color: #000000;          /* Texto base NEGRO PURO */
+    border: none;            /* Sin borde exterior */
+    padding: 0px;            /* AJUSTE: Eliminar padding del contenedor de la tabla */
+}}
+
+QTableWidget::item, QTableView::item {{
+    padding: 0px 0px;
+    border-bottom: 3px solid #f0f0f0;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    background-color: white;
+    color: #000000;
+}}
+
+/* Al seleccionar */
+QTableWidget::item:selected, QTableView::item:selected {{
+    background-color: #fafafa;
+    color: #000000;
+    border-bottom: 3px solid #d0d0d0;
+}}
+
+QHeaderView::section:horizontal {{
+    background-color: #f4f6f7;
+    color: #444444;
+    font-weight: bold;
+    padding: 4px;
+    border-bottom: 2px solid #e0e0e0;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+}}
+
+QHeaderView::section:vertical {{
+    background-color: white;
+    border: none;
+}}
+
+/* =========================================================================
+   4. SCROLLBARS (ALTO CONTRASTE PARA VISIBILIDAD)
+   ========================================================================= */
+/* Scroll Vertical */
+QScrollBar:vertical {{
+    background: #e1e1e1;      /* Gris claro visible */
+    width: 16px;              /* Ancho generoso */
+    margin: 0px;
+    border: none;
+    border-left: 1px solid #c0c0c0;
+}}
+
+QScrollBar::handle:vertical {{
+    background: #666666;      /* Gris oscuro para contraste fuerte */
+    min-height: 20px;
+    border-radius: 4px;
+    margin: 2px;
+}}
+
+QScrollBar::handle:vertical:hover {{
+    background: #444444;      /* Casi negro al pasar el mouse */
+}}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+    height: 0px;
+    background: none;
+}}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    background: none;
+}}
+
+/* Scroll Horizontal */
+QScrollBar:horizontal {{
+    background: #e1e1e1;      /* Gris claro visible */
+    height: 16px;             /* Alto generoso */
+    margin: 0px;
+    border: none;
+    border-top: 1px solid #c0c0c0; /* Separador claro con la tabla */
+}}
+
+QScrollBar::handle:horizontal {{
+    background: #666666;      /* Gris oscuro para contraste fuerte */
+    min-width: 20px;
+    border-radius: 4px;
+    margin: 2px;
+}}
+
+QScrollBar::handle:horizontal:hover {{
+    background: #444444;
+}}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+    width: 0px;
+    background: none;
+}}
+
+/* Esquina de union de scrolls */
+QAbstractScrollArea::corner {{
+    background: #e1e1e1;
+    border: none;
+}}
+
+QLineEdit:disabled {{
+    background-color: white;
+    color: #000000;
+    border: 1px solid #c0c0c0;
+    opacity: 1;                 /* CLAVE: evita efecto gris */
+}}
+QComboBox:disabled {{
+    background-color: white;
+    color: #000000;
+    border: 1px solid #c0c0c0;
+    opacity: 1;
+}}
+
+QComboBox::drop-down:disabled {{
+    border: none;
+}}
+
+QComboBox::down-arrow:disabled {{
+    image: none;                /* Oculta la flecha */
+}}
+QDateEdit:disabled {{
+    background-color: white;
+    color: #000000;
+    border: 1px solid #c0c0c0;
+    opacity: 1;
+}}
+
+QDateEdit::drop-down:disabled {{
+    border: none;
+}}
+
+QDateEdit::down-arrow:disabled {{
+    image: none;
+}}
+
+
+
+/* Checkbox marcado PERO DESHABILITADO (CLAVE) */
+QCheckBox:disabled {{
+    color: #555;
+}}
+
+QCheckBox:disabled {{
+    color: rgba(0, 0, 0, 150);  /* texto un poco más claro */
+}}

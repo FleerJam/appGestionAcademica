@@ -1,0 +1,23 @@
+# Entornos virtuales de Python
+.venv/
+venv/
+env/
+
+# Configuración del editor (PyCharm)
+.idea/
+
+# Variables de entorno (¡Crítico para la seguridad!)
+.env
+
+# Carpetas de compilación (PyInstaller)
+build/
+dist/
+
+# Archivos compilados y caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de base de datos local (evita subir datos de prueba)
+*.sqlite3
+*.db
