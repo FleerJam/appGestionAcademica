@@ -364,7 +364,8 @@ class DialogoGenerarCertificados(DialogoBase):
             elif len(words) == 2:
                 siglas_cur = (words[0][:1] + words[1][:2])
             else:
-                w = words[0]; siglas_cur = w[:3] if len(w) >= 3 else w.ljust(3, 'X')
+                w = words[0];
+                siglas_cur = w[:3] if len(w) >= 3 else w.ljust(3, 'X')
 
             sufijo = datos_base.get("sufijo_tipo", "C")
 
@@ -439,13 +440,23 @@ class DialogoGenerarCertificados(DialogoBase):
         plantilla_path = os.path.join(temp_dir, "plantilla.docx")
         temp_pdf_dir = tempfile.mkdtemp()
 
-        # Log para errores
+        # Log para errores (FORMATO LIMPIO Y AMIGABLE)
         log_path = os.path.join(self.ruta_destino_usuario, "log_errores_certificados.txt")
+
+        # Eliminar log anterior si existe para empezar limpio
         if os.path.exists(log_path):
             try:
                 os.remove(log_path)
             except:
                 pass
+
+        # Crear encabezado del log
+        try:
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write("REPORTE DE ERRORES DE GENERACIÓN\n")
+                f.write("==================================\n\n")
+        except:
+            pass  # Si no puede crear el log, seguimos sin log
 
         session = SessionLocal()  # Sesión para el lote
 
@@ -488,28 +499,19 @@ class DialogoGenerarCertificados(DialogoBase):
             ultimo_error_msg = ""
 
             for i, item in enumerate(items):
+                # Variables para log en caso de error
+                nombre_est_log = "Desconocido"
+                nombre_curso_log = self.curso_obj.nombre if self.curso_obj else "Desconocido"
+
                 try:
                     # Usamos la sesión local para traer el objeto matricula 'vivo'
                     mat_data = item.data(Qt.ItemDataRole.UserRole)
                     mat = session.query(Matricula).get(mat_data.id)
 
+                    if mat and mat.persona:
+                        nombre_est_log = mat.persona.nombre
+
                     nombre_clean = Sanitizer.limpiar_texto(mat.persona.nombre)
-                    # El nombre del archivo temporal se define aquí, el código final se calcula dentro del núcleo pero
-                    # para el archivo temporal necesitamos un nombre preliminar o calculamos el código antes si quisiéramos.
-                    # El núcleo calcula el código, pero necesitamos pasar el path.
-                    # Truco: Usamos un nombre genérico con cédula y el núcleo genera el archivo.
-                    # Para simplificar y no duplicar lógica de código, podemos generar el archivo con cédula y luego renombrarlo
-                    # o aceptar que el archivo en disco no tenga el código en el nombre si es masivo.
-                    # OJO: La lógica original construía el nombre del archivo CON el código.
-                    # Para mantener compatibilidad exacta, moveremos la lógica de código FUERA del núcleo para masivo?
-                    # No, mejor dejar que el nucleo lo maneje pero pasarle un path temporal y luego moverlo.
-
-                    # Para masivo, el nombre de archivo es importante.
-                    # Requerimos el código ANTES para el nombre del archivo.
-                    # Ajuste: Haremos que el nucleo use un path temporal y nos devuelva el codigo generado,
-                    # pero el método retorna bool.
-                    # Simplificación: Usaremos nombre con Cédula y Nombre. El código va DENTRO del PDF.
-
                     filename = f"{mat.persona.cedula}_{nombre_clean}.pdf"
                     ruta_temp_pdf = os.path.join(temp_pdf_dir, filename)
                     ruta_usu = os.path.join(self.ruta_destino_usuario, filename)
@@ -534,13 +536,24 @@ class DialogoGenerarCertificados(DialogoBase):
                 except Exception as e:
                     err += 1
                     ultimo_error_msg = str(e)
-                    with open(log_path, "a", encoding="utf-8") as f:
-                        f.write(f"\n[ERROR] Fila {i}: {e}\n{traceback.format_exc()}\n")
+
+                    # --- ESCRITURA LIMPIA EN EL LOG ---
+                    try:
+                        with open(log_path, "a", encoding="utf-8") as f:
+                            f.write(f"Estudiante: {nombre_est_log}\n")
+                            f.write(f"Curso: {nombre_curso_log}\n")
+                            f.write(f"Motivo: {str(e)}\n")
+                            f.write("-" * 50 + "\n")
+                    except:
+                        pass  # Evitar crash si falla el log
 
                     # Rollback parcial de contadores si es necesario
-                    centro_id = mat.centro_id or mat.persona.centro_id
-                    if centro_id in contadores_centros:
-                        contadores_centros[centro_id] -= 1
+                    try:
+                        centro_id = mat.centro_id or mat.persona.centro_id
+                        if centro_id in contadores_centros:
+                            contadores_centros[centro_id] -= 1
+                    except:
+                        pass
 
                 avance = i + 1
                 if avance % 5 == 0 or avance == total_items:

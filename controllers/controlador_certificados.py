@@ -140,6 +140,7 @@ class ControladorCertificados(QWidget):
 
         if self.input_buscar: self.input_buscar.textChanged.connect(self.filtrar_tabla)
 
+        # Botones existentes
         btn_ids = ['btn_recargar', 'btn_subir_lote', 'btn_descargar_zip', 'btn_anterior', 'btn_siguiente']
         funcs = [self.recargar_datos, self.accion_subir_lote, self.accion_descargar_zip_curso, self.pagina_anterior,
                  self.pagina_siguiente]
@@ -147,6 +148,11 @@ class ControladorCertificados(QWidget):
         for bid, func in zip(btn_ids, funcs):
             btn = self.findChild(QPushButton, bid)
             if btn: btn.clicked.connect(func)
+
+        # --- NUEVO: Conectar botón de eliminar curso ---
+        self.btn_eliminar_curso = self.findChild(QPushButton, 'btn_eliminar_curso')
+        if self.btn_eliminar_curso:
+            self.btn_eliminar_curso.clicked.connect(self.accion_eliminar_curso_actual)
 
         self.lbl_paginacion = self.findChild(QLabel, 'lbl_paginacion')
         self.lbl_contador_sub = self.findChild(QLabel, 'lbl_contador_sub')
@@ -311,7 +317,6 @@ class ControladorCertificados(QWidget):
                 return QMessageBox.warning(self, "Aviso", "No hay PDF firmado asociado.")
 
             # MODIFICADO: No usar os.path.basename, respetar la estructura de carpetas guardada en DB
-            # Esto permite que si la ruta es "Curso A/Centro B/file.pdf", se abra correctamente.
             path_abs = os.path.abspath(os.path.join(config.SHARED_FOLDER_PATH, ruta))
 
             if os.path.exists(path_abs):
@@ -322,6 +327,7 @@ class ControladorCertificados(QWidget):
             traceback.print_exc()
 
     def accion_eliminar(self, matricula_id):
+        # Esta acción elimina SOLO un certificado individual
         if not matricula_id: return
         if QMessageBox.question(self, "Eliminar", "¿Borrar certificado?",
                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.No:
@@ -335,7 +341,6 @@ class ControladorCertificados(QWidget):
             if cert:
                 # Borrar físico firmado si existe
                 if mat.ruta_pdf_firmado:
-                    # MODIFICADO: Respetar ruta relativa con carpetas
                     p = os.path.join(config.SHARED_FOLDER_PATH, mat.ruta_pdf_firmado)
                     if os.path.exists(p): os.remove(p)
                     mat.ruta_pdf_firmado = None
@@ -347,6 +352,90 @@ class ControladorCertificados(QWidget):
             session.close()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+
+    def accion_eliminar_curso_actual(self):
+        """
+        Elimina el CURSO seleccionado en el combo de filtro.
+        Pregunta si se deben eliminar los archivos físicos asociados (Certificados).
+        """
+        curso_id = self.combo_filtro.currentData()
+        if not curso_id:
+            return QMessageBox.warning(self, "Selección Requerida",
+                                       "Por favor, seleccione un curso específico en el filtro superior para eliminar.")
+
+        # 1. Confirmación de seguridad (Base de Datos)
+        resp_db = QMessageBox.question(
+            self, "Eliminar Curso",
+            "⚠ ESTÁ A PUNTO DE ELIMINAR EL CURSO COMPLETO ⚠\n\n"
+            "Esto borrará de la base de datos:\n"
+            "- El curso\n"
+            "- Todas las matrículas\n"
+            "- Todos los registros de certificados\n\n"
+            "¿Desea continuar?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if resp_db != QMessageBox.StandardButton.Yes:
+            return
+
+        # 2. Confirmación de Archivos Físicos (Lo que pediste)
+        borrar_fisicos = False
+        resp_files = QMessageBox.question(
+            self, "Gestión de Certificados Físicos",
+            "¿Qué desea hacer con los archivos PDF (certificados) almacenados en el disco?\n\n"
+            "SÍ -> Borrar también los archivos PDF del disco duro.\n"
+            "NO -> Eliminar el curso de la App pero MANTENER los archivos PDF.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if resp_files == QMessageBox.StandardButton.Yes:
+            borrar_fisicos = True
+
+        session = SessionLocal()
+        try:
+            curso = session.query(Curso).get(curso_id)
+            if not curso:
+                return QMessageBox.warning(self, "Error", "El curso ya no existe en la base de datos.")
+
+            # Lógica para borrar archivos físicos si el usuario dijo SI
+            if borrar_fisicos:
+                # a) Borrar PDFs Firmados (vinculados a Matricula)
+                matriculas = session.query(Matricula).filter_by(curso_id=curso_id).all()
+                count_mat = 0
+                for mat in matriculas:
+                    if mat.ruta_pdf_firmado:
+                        full_path = os.path.join(config.SHARED_FOLDER_PATH, mat.ruta_pdf_firmado)
+                        if os.path.exists(full_path):
+                            try:
+                                os.remove(full_path)
+                                count_mat += 1
+                            except: pass
+
+                # b) Borrar PDFs Generados (vinculados a Certificado)
+                certificados = session.query(Certificado).filter_by(curso_id=curso_id).all()
+                count_cert = 0
+                for cert in certificados:
+                    if cert.ruta_pdf:
+                        full_path = os.path.join(config.SHARED_FOLDER_PATH, cert.ruta_pdf)
+                        if os.path.exists(full_path):
+                            try:
+                                os.remove(full_path)
+                                count_cert += 1
+                            except: pass
+                print(f"Archivos eliminados: {count_mat} firmados, {count_cert} generados.")
+
+            # Borrar Curso de BD
+            # Al tener cascade='all, delete-orphan' en los modelos, esto borrará Matriculas y Certificados en BD
+            session.delete(curso)
+            session.commit()
+
+            QMessageBox.information(self, "Curso Eliminado", "El curso ha sido eliminado correctamente.")
+            self._cargar_cursos_en_combo()
+            self.recargar_datos()
+
+        except Exception as e:
+            session.rollback()
+            QMessageBox.critical(self, "Error al eliminar", f"Ocurrió un error: {str(e)}")
+        finally:
+            session.close()
 
     def accion_subir_firmado(self, matricula_id):
         """ Sube un archivo individual, organizándolo en carpetas legibles. """
@@ -517,9 +606,6 @@ class ControladorCertificados(QWidget):
 
                     if os.path.exists(src):
                         # Queremos que en el ZIP quede organizado por Centro/Institucion
-                        # Podemos confiar en la ruta guardada O re-generar estructura si se desea agrupar distinto.
-                        # Aquí usaremos la lógica de agrupación por Institución como pediste antes.
-
                         nombre_centro = self._limpiar_nombre(m.centro.nombre) if m.centro else "Sin Centro"
                         nombre_inst = self._limpiar_nombre(
                             m.persona.institucion_articulada) if m.persona and m.persona.institucion_articulada else "Particulares"

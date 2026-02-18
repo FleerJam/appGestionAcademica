@@ -34,6 +34,8 @@ class DialogoBase(QDialog):
         msg.setIcon(QMessageBox.Icon.Critical)
         msg.setWindowTitle(titulo)
         msg.setText(mensaje)
+        # Permitir seleccionar texto también en los errores críticos
+        msg.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
 
@@ -65,6 +67,8 @@ class DialogoEntrada(DialogoBase):
 
         self.label = QLabel(mensaje)
         self.label.setWordWrap(True)
+        # --- CAMBIO: Permitir seleccionar el texto del mensaje ---
+        self.label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(self.label)
 
         self.input_dato = QLineEdit()
@@ -140,6 +144,8 @@ class DialogoSeleccion(DialogoBase):
 
         self.label = QLabel(mensaje)
         self.label.setWordWrap(True)
+        # --- CAMBIO: Permitir seleccionar el texto del mensaje ---
+        self.label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(self.label)
 
         # --- ÁREA DE SCROLL PARA RADIO BUTTONS ---

@@ -300,6 +300,12 @@ class GestorImportacion:
         # Le sumamos los omitidos manualmente durante la fase de revisión
         resultado.registros_omitidos += len(self.lista_omitidos)
 
+        # --- CORRECCIÓN CLAVE ---
+        # Fusionar la lista de reporte local (omisiones/duplicados) con la lista de errores del resultado (BD)
+        if self.reporte_errores:
+            # Ponemos los errores de validación primero, luego los de base de datos
+            resultado.errores = self.reporte_errores + resultado.errores
+
         self._mostrar_resumen(resultado)
 
     def _on_guardado_error(self, error_msg):

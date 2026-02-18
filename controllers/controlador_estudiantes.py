@@ -1,20 +1,15 @@
 #  Copyright (c) 2026 Fleer
-#  Permission is hereby granted, free of charge, to any person obtaining a copy
-#  of this software and associated documentation files (the "Software"), to deal
-#  in the Software without restriction, including without limitation the rights
-#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#  copies of the Software, and to permit persons to whom the Software is
-#  furnished to do so, subject to the following conditions:
-#
-#  The above copyright notice and this permission notice shall be included in all
-#  copies or substantial portions of the Software.
-
+import os
 from PyQt6 import uic
 from PyQt6.QtWidgets import QWidget, QMessageBox, QTableWidget, QLineEdit, QLabel, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 
 # --- IMPORTACIONES DEL PROYECTO ---
+from database import config
+from database.conexion import SessionLocal
+from database.models import Matricula, Certificado
+
 from models.centro_model import CentroModel
 from models.persona_model import PersonaModel
 from models.curso_model import CursoModel
@@ -263,7 +258,6 @@ class ControladorEstudiantes(QWidget):
 
     def abrir_detalle_estudiante(self, persona_id):
         """Abre la vista detallada del estudiante seleccionado."""
-        """Ver detalles completos."""
         persona = self.model_estudiante.get_by_id(persona_id)
         if not persona:
             QMessageBox.warning(self, "Error", "No se encontró el registro.")
@@ -276,7 +270,6 @@ class ControladorEstudiantes(QWidget):
         Valida que el estudiante tenga un centro asignado antes de permitir
         la matrícula.
         """
-        """Abre el diálogo para inscribir a ESTE estudiante en un curso."""
         persona = self.model_estudiante.get_by_id(persona_id)
         if not persona: return
 
@@ -329,14 +322,7 @@ class ControladorEstudiantes(QWidget):
                 QMessageBox.critical(self, "Error", f"No se pudo crear la matrícula:\n{e}")
 
     def borrar_estudiante(self, persona_id):
-        """Elimina un estudiante tras una doble confirmación de seguridad.
-
-        Advierte sobre el borrado en cascada de matrículas y calificaciones.
-
-        Args:
-            persona_id (int): ID del estudiante a eliminar.
-        """
-        """Elimina al estudiante tras doble confirmación."""
+        """Elimina un estudiante tras varias confirmaciones, incluyendo limpieza de archivos físicos."""
         persona = self.model_estudiante.get_by_id(persona_id)
         if not persona: return
 
@@ -348,23 +334,70 @@ class ControladorEstudiantes(QWidget):
         )
         if resp != QMessageBox.StandardButton.Yes: return
 
-        # 2. Segunda confirmación (Advertencia Crítica)
+        # 2. Segunda confirmación (Advertencia BD)
         advertencia = QMessageBox.warning(
             self, "Confirmación Irreversible",
             f"¡ADVERTENCIA!\n\n"
-            f"Al eliminar a {persona.nombre} se borrarán también:\n"
+            f"Al eliminar a {persona.nombre} se borrarán también de la base de datos:\n"
             f"- Su historial de matrículas.\n"
-            f"- Sus calificaciones y certificados.\n\n"
+            f"- Sus calificaciones y registros de certificados.\n\n"
             f"¿Está seguro de continuar?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
+        if advertencia != QMessageBox.StandardButton.Yes: return
 
-        if advertencia == QMessageBox.StandardButton.Yes:
-            try:
-                if self.model_estudiante.delete(persona_id):
-                    QMessageBox.information(self, "Eliminado", "Registro eliminado correctamente.")
-                    self.recargar_datos()
-                else:
-                    QMessageBox.warning(self, "Error", "No se pudo eliminar el registro.")
-            except Exception as e:
-                QMessageBox.critical(self, "Error Crítico", f"Error al eliminar:\n{e}")
+        # 3. Tercera confirmación (Archivos Físicos)
+        borrar_fisicos = False
+        resp_files = QMessageBox.question(
+            self, "Archivos PDF",
+            f"¿Desea eliminar también los archivos PDF (Certificados) de {persona.nombre} almacenados en el disco duro?\n\n"
+            "SÍ -> Borrar usuario y sus archivos PDF.\n"
+            "NO -> Borrar usuario pero mantener los archivos PDF.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if resp_files == QMessageBox.StandardButton.Yes:
+            borrar_fisicos = True
+
+        # Ejecución
+        try:
+            if borrar_fisicos:
+                session = SessionLocal()
+                try:
+                    # a) Borrar PDFs Firmados (Matricula)
+                    mats = session.query(Matricula).filter_by(persona_id=persona_id).all()
+                    c_mats = 0
+                    for m in mats:
+                        if m.ruta_pdf_firmado:
+                            fp = os.path.join(config.SHARED_FOLDER_PATH, m.ruta_pdf_firmado)
+                            if os.path.exists(fp):
+                                try:
+                                    os.remove(fp)
+                                    c_mats += 1
+                                except: pass
+
+                    # b) Borrar PDFs Generados (Certificado)
+                    certs = session.query(Certificado).filter_by(persona_id=persona_id).all()
+                    c_certs = 0
+                    for c in certs:
+                        if c.ruta_pdf:
+                            fp = os.path.join(config.SHARED_FOLDER_PATH, c.ruta_pdf)
+                            if os.path.exists(fp):
+                                try:
+                                    os.remove(fp)
+                                    c_certs += 1
+                                except: pass
+                    print(f"Archivos físicos eliminados de {persona.nombre}: {c_mats} firmados, {c_certs} generados.")
+                except Exception as e_files:
+                    print(f"Error borrando archivos físicos: {e_files}")
+                finally:
+                    session.close()
+
+            # Borrar de BD
+            if self.model_estudiante.delete(persona_id):
+                QMessageBox.information(self, "Eliminado", "Registro eliminado correctamente.")
+                self.recargar_datos()
+            else:
+                QMessageBox.warning(self, "Error", "No se pudo eliminar el registro en la base de datos.")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error Crítico", f"Error al eliminar:\n{e}")
